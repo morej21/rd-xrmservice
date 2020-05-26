@@ -1,0 +1,252 @@
+/* eslint-disable import/prefer-default-export */
+import { Observable } from 'rxjs';
+import { ajax } from 'rxjs/ajax';
+import { map, catchError } from 'rxjs/operators';
+import { XrmImage } from '../models';
+
+export interface Credentials {
+	Token: string;
+}
+
+export class CrmWebapiService {
+	cred: Credentials | undefined;
+
+	constructor(clientUrl: string);
+
+	constructor(clientUrl: string, token: string);
+
+	constructor(private clientUrl: string, private token?: string) {}
+
+	public executeFetch(
+		entitySetName: string,
+		fetchXml: string,
+	): Observable<any> {
+		return this.retrieve(`${entitySetName}?fetchXml=${fetchXml}`);
+	}
+
+	public getImage(
+		entitySetName: string,
+		imageAttribute: string,
+		entityId: string,
+	): Observable<XrmImage> {
+		const headers = {
+			Accept: 'application/octet-stream',
+			'Content-Type': 'application/octet-stream',
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+
+		return ajax({
+			url: `${this.getWebAPIPath()}${entitySetName}(${entityId})/${imageAttribute}/$value?size=full`,
+			headers,
+			responseType: 'arraybuffer',
+		}).pipe(
+			map(ar => {
+				const image = new XrmImage();
+				image.fileName = ar.xhr.getResponseHeader('x-ms-file-name');
+				image.imageArrayBuffer = ar.response;
+				return image;
+			}),
+		);
+	}
+
+	public updateImage(
+		entitySetName: string,
+		imageAttribute: string,
+		entityId: string,
+		image: XrmImage,
+	): Observable<any> {
+		const headers = {
+			Accept: 'application/octet-stream',
+			'Content-Type': 'application/octet-stream',
+			'x-ms-file-name': image.fileName,
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		return ajax({
+			url: `${this.getWebAPIPath()}${entitySetName}(${entityId})/${imageAttribute}`,
+			headers,
+			body: image.imageArrayBuffer,
+			method: 'PUT',
+		});
+	}
+
+	public createRecord(entitySetName: string, attributes: any): Observable<any> {
+		const headers = {
+			'Content-Type': 'application/json; charset=utf-8',
+			Accept: 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+
+		return ajax({
+			headers,
+			url: this.getWebAPIPath() + entitySetName,
+			body: JSON.stringify(attributes),
+			method: 'POST',
+		}).pipe(
+			map(response => {
+				if (response.status === 201) {
+					return response;
+				}
+				if (response.status === 204) {
+					let entityId = response.xhr.getResponseHeader('odata-entityid');
+					if (entityId) {
+						entityId = entityId
+							.substring(entityId.indexOf('(') + 1)
+							.substring(0, 36);
+						return entityId;
+					}
+				}
+			}),
+		);
+	}
+
+	public updateRecord(
+		entitySetName: string,
+		id: string,
+		attributes: any,
+	): Observable<any> {
+		const headers = {
+			'Content-Type': 'application/json; charset=utf-8',
+			Accept: 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		id = id.replace('{', '').replace('}', '');
+		const queryString = `${entitySetName}(${id})`;
+		return ajax
+			.patch(
+				this.getWebAPIPath() + queryString,
+				JSON.stringify(attributes),
+				headers,
+			)
+			.pipe(
+				map(response => {
+					return response;
+				}),
+				catchError(error =>
+					Observable.throw({
+						source: 'Crm Service updateRecord',
+						message: error.error ? error.error.error.message : error.message,
+					}),
+				),
+			);
+	}
+
+	public deleteRecord(entitySetName: string, id: string): Observable<any> {
+		const queryString = `${entitySetName}(${id})`;
+		const headers = {
+			'Content-Type': 'application/json; charset=utf-8',
+			Accept: 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		return ajax.delete(this.getWebAPIPath() + queryString, headers).pipe(
+			map(response => {
+				return response;
+			}),
+		);
+	}
+
+	public associateRecord(
+		entitySetName: string,
+		entityId: string,
+		relationShip: string,
+		relEntitySetName: string,
+		relEntityId: string,
+	) {
+		const headers = {
+			'Content-Type': 'application/json; charset=utf-8',
+			Accept: 'application/json',
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+
+		const association = {
+			'@odata.id': `${this.getWebAPIPath() + entitySetName}(${entityId})`,
+		};
+		return ajax({
+			headers,
+			url: `${this.getWebAPIPath()}${relEntitySetName}(${relEntityId})/${relationShip}/$ref`,
+			body: JSON.stringify(association),
+			method: 'POST',
+		});
+	}
+
+	public retrieveMetaData(logicalName: string, attributes?: string[]) {
+		const entityDefinition = `EntityDefinitions(LogicalName='${logicalName}')`;
+		const select =
+			'?$select=LogicalName,PrimaryNameAttribute,PrimaryIdAttribute,CollectionSchemaName,LogicalCollectionName,EntitySetName';
+		let expand = '';
+		if (attributes && attributes.length > 0)
+			expand = `&$expand=Attributes($select=LogicalName,SchemaName,IsCustomAttribute${
+				attributes
+					? `;$filter=Microsoft.Dynamics.CRM.In(PropertyName='LogicalName',PropertyValues=[${attributes
+							.map(a => `'${a}'`)
+							.join(',')}])`
+					: ''
+			})`;
+		else
+			expand =
+				'&$expand=Attributes($select=LogicalName,SchemaName,IsCustomAttribute)';
+		const queryString = entityDefinition + select + expand;
+		return this.retrieve(queryString);
+	}
+
+	public retrieveEntityMetaData(logicalNames?: string[]) {
+		let queryString = 'EntityDefinitions';
+		queryString +=
+			'?$select=LogicalName,PrimaryNameAttribute,PrimaryIdAttribute,CollectionSchemaName,LogicalCollectionName,EntitySetName';
+		if (logicalNames)
+			queryString += `&$filter=Microsoft.Dynamics.CRM.In(PropertyName='LogicalName',PropertyValues=[${logicalNames
+				.map(l => `'${l}'`)
+				.join(',')}])`;
+
+		return this.retrieve(queryString).pipe(map(b => b.value));
+	}
+
+	public retrieveLookupMetaData(logicalName: string) {
+		const queryString = `EntityDefinitions(LogicalName='${logicalName}')/Attributes/Microsoft.Dynamics.CRM.LookupAttributeMetadata?$select=LogicalName,Targets`;
+		return this.retrieve(queryString).pipe(map(b => b.value));
+	}
+
+	private retrieve(queryString): Observable<any> {
+		return ajax.getJSON(
+			`${this.getWebAPIPath()}${queryString}`,
+			this.getJSONHeaders(),
+		);
+	}
+
+	public retrieveEntityMetaDataRelationShipName(
+		entity1: string,
+		entity2: string,
+	) {
+		const queryString = `RelationshipDefinitions/Microsoft.Dynamics.CRM.ManyToManyRelationshipMetadata?$select=SchemaName&$filter=(Entity1LogicalName eq '${entity1}'  and Entity2LogicalName eq '${entity2}') or (Entity1LogicalName eq '${entity2}' and Entity2LogicalName eq '${entity1}')`;
+		return this.retrieve(queryString).pipe(map(b => b.value));
+	}
+
+	public retrieveReferencingAttribute(
+		referencingEntity: string,
+		referencedEntity: string,
+	) {
+		const queryString: string = `RelationshipDefinitions/Microsoft.Dynamics.CRM.OneToManyRelationshipMetadata?$select=ReferencingAttribute&$filter=ReferencedEntity eq '${referencedEntity}' and ReferencingEntity eq '${referencingEntity}'`;
+		return this.retrieve(queryString).pipe(map(b => b.value));
+	}
+
+	private getJSONHeaders(): any {
+		const headers = {
+			'OData-MaxVersion': '4.0',
+			'OData-Version': '4.0',
+			Prefer: 'odata.include-annotations=*',
+		};
+		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		return headers;
+	}
+
+	private getWebAPIPath() {
+		return `${this.clientUrl}/api/data/v9.1/`;
+	}
+}

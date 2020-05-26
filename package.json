@@ -1,16 +1,33 @@
 {
-  "name": "ts-template",
-  "version": "1.0.0",
-  "description": "",
-  "author": "Ochuko Ekrresa <kelvinekrresa@gmail.com>",
-  "main": "index.js",
+  "name": "rd-xrmservice",
+  "version": "1.0.28",
+  "description": "TypeScript implementation of CrmServiceClient",
+  "author": {
+    "name": "David Laeremans(morej21@hotmail.com)",
+    "url": "https://www.realdolmen.com"
+  },
+  "main": "./build/index.js",
+  "types": "build/index.d.ts",
   "scripts": {
     "lint": "pretty-quick --staged && lint-staged",
-    "build": "rm -rf build && tsc",
-    "dev": "ts-node-dev --transpileOnly --no-notify --clear src"
+    "build": "tsc",
+    "dev": "ts-node-dev --transpileOnly --no-notify --clear src",
+    "prepublish": "npm run build",
+    "refreshVSToken": "vsts-npm-auth -config .npmrc",
+    "refreshglobalVSToken": "vsts-npm-auth -config C:\\Users\\laeremad\\AppData\\Roaming\\npm\\etc\\.npmrc"
   },
-  "keywords": [],
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "rd-xrmquery"
+  },
+  "keywords": [
+    "PowerApps",
+    "XrmQuery",
+    "QueryExpression",
+    "XrmService",
+    "CrmServiceClient"
+  ],
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^13.7.1",
     "@typescript-eslint/eslint-plugin": "^2.19.0",
@@ -33,5 +50,14 @@
   },
   "lint-staged": {
     "*.{ts,js}": "eslint --cache --fix"
-  }
+  },
+  "dependencies": {
+    "mime-types": "^2.1.27",
+    "rd-xrmquery": "^1.0.23",
+    "rxjs": "^6.5.5"
+  },
+  "files": [
+    "build/**/*"
+  ],
+  "typings": "./build/index.d.ts"
 }
