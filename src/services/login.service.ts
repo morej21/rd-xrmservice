@@ -13,6 +13,6 @@ export class LoginService {
 
 	// eslint-disable-next-line class-methods-use-this
 	private getWebAPIPath() {
-		return 'https://portalauthent.azurewebsites.net/api/PortalAuthent';
+		return '';
 	}
 }
