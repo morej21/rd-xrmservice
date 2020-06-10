@@ -5,6 +5,7 @@ export class ApiEntityConverter<
 	TSource extends Entity,
 	TDestination extends CrmEntity
 > implements ITypeConverter<TSource, TDestination> {
+	// eslint-disable-next-line class-methods-use-this
 	Convert(context: Context<TSource, TDestination>): TDestination {
 		const apiEntity: any = {};
 		const entity = <Entity>context.SourceValue;

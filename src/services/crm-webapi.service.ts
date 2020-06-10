@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 /* eslint-disable import/prefer-default-export */
 import { Observable } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
@@ -24,16 +25,20 @@ export class CrmWebapiService {
 		return this.retrieve(`${entitySetName}?fetchXml=${fetchXml}`);
 	}
 
+	public GetAuthorizedHeader(header: any) {
+		if (this.token) header.Authorization = `Bearer ${this.token}`;
+		return header;
+	}
+
 	public getImage(
 		entitySetName: string,
 		imageAttribute: string,
 		entityId: string,
 	): Observable<XrmImage> {
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			Accept: 'application/octet-stream',
 			'Content-Type': 'application/octet-stream',
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
 
 		return ajax({
 			url: `${this.getWebAPIPath()}${entitySetName}(${entityId})/${imageAttribute}/$value?size=full`,
@@ -55,12 +60,12 @@ export class CrmWebapiService {
 		entityId: string,
 		image: XrmImage,
 	): Observable<any> {
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			Accept: 'application/octet-stream',
 			'Content-Type': 'application/octet-stream',
 			'x-ms-file-name': image.fileName,
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
+
 		return ajax({
 			url: `${this.getWebAPIPath()}${entitySetName}(${entityId})/${imageAttribute}`,
 			headers,
@@ -70,13 +75,12 @@ export class CrmWebapiService {
 	}
 
 	public createRecord(entitySetName: string, attributes: any): Observable<any> {
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			'Content-Type': 'application/json; charset=utf-8',
 			Accept: 'application/json',
 			'OData-MaxVersion': '4.0',
 			'OData-Version': '4.0',
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
 
 		return ajax({
 			headers,
@@ -106,13 +110,13 @@ export class CrmWebapiService {
 		id: string,
 		attributes: any,
 	): Observable<any> {
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			'Content-Type': 'application/json; charset=utf-8',
 			Accept: 'application/json',
 			'OData-MaxVersion': '4.0',
 			'OData-Version': '4.0',
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
+
 		id = id.replace('{', '').replace('}', '');
 		const queryString = `${entitySetName}(${id})`;
 		return ajax
@@ -136,13 +140,12 @@ export class CrmWebapiService {
 
 	public deleteRecord(entitySetName: string, id: string): Observable<any> {
 		const queryString = `${entitySetName}(${id})`;
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			'Content-Type': 'application/json; charset=utf-8',
 			Accept: 'application/json',
 			'OData-MaxVersion': '4.0',
 			'OData-Version': '4.0',
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
 		return ajax.delete(this.getWebAPIPath() + queryString, headers).pipe(
 			map(response => {
 				return response;
@@ -157,13 +160,12 @@ export class CrmWebapiService {
 		relEntitySetName: string,
 		relEntityId: string,
 	) {
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			'Content-Type': 'application/json; charset=utf-8',
 			Accept: 'application/json',
 			'OData-MaxVersion': '4.0',
 			'OData-Version': '4.0',
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
 
 		const association = {
 			'@odata.id': `${this.getWebAPIPath() + entitySetName}(${entityId})`,
@@ -220,11 +222,11 @@ export class CrmWebapiService {
 		);
 	}
 
-	public retrieveEntityMetaDataRelationShipName(
+	public retrieveEntityMetaDataRelationShipDetails(
 		entity1: string,
 		entity2: string,
 	) {
-		const queryString = `RelationshipDefinitions/Microsoft.Dynamics.CRM.ManyToManyRelationshipMetadata?$select=SchemaName&$filter=(Entity1LogicalName eq '${entity1}'  and Entity2LogicalName eq '${entity2}') or (Entity1LogicalName eq '${entity2}' and Entity2LogicalName eq '${entity1}')`;
+		const queryString = `RelationshipDefinitions/Microsoft.Dynamics.CRM.ManyToManyRelationshipMetadata?$select=SchemaName,IntersectEntityName,Entity1IntersectAttribute,Entity2IntersectAttribute&$filter=(Entity1LogicalName eq '${entity1}'  and Entity2LogicalName eq '${entity2}') or (Entity1LogicalName eq '${entity2}' and Entity2LogicalName eq '${entity1}')`;
 		return this.retrieve(queryString).pipe(map(b => b.value));
 	}
 
@@ -237,12 +239,11 @@ export class CrmWebapiService {
 	}
 
 	private getJSONHeaders(): any {
-		const headers = {
+		const headers = this.GetAuthorizedHeader({
 			'OData-MaxVersion': '4.0',
 			'OData-Version': '4.0',
 			Prefer: 'odata.include-annotations=*',
-		};
-		if (this.token) headers.Authorization = `Bearer ${this.token}`;
+		});
 		return headers;
 	}
 

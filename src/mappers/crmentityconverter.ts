@@ -1,3 +1,4 @@
+/* eslint-disable prefer-destructuring */
 import { CrmEntity, ITypeConverter, Context, MapType } from '.';
 import { Entity, EntityReference, OptionSetValue } from '../models';
 
@@ -6,6 +7,7 @@ export class CrmEntityConverter<
 	TDestination extends Entity,
 	K extends keyof TDestination
 > implements ITypeConverter<TSource, TDestination[K]> {
+	// eslint-disable-next-line class-methods-use-this
 	Convert(context: Context<TSource, TDestination[K]>): TDestination[K] {
 		const entityFrom = <TSource>context.SourceValue;
 		const entityTo = <TDestination[K]>context.DestinationValue;
@@ -55,14 +57,16 @@ export class CrmEntityConverter<
 			if (mf.startsWith('_') && mf.endsWith('_value'))
 				mfBase = mf.substring(1).split('_value')[0];
 
-			let type = fieldMetaData.Attributes.find(m => m.LogicalName === mfBase);
+			let type = fieldMetaData?.Attributes?.find(m => m.LogicalName === mfBase);
 			if (!type) {
 				if (originalName) {
-					type = fieldMetaData.Attributes.find(
+					type = fieldMetaData?.Attributes?.find(
 						m => m.LogicalName === entityFrom.Content[originalName],
 					);
 					if (!type) {
 						// when aliased there is no backing link to [entity] attribute metadata but it has been provisioned in one of: look in all metadata
+						// eslint-disable-next-line consistent-return
+						// eslint-disable-next-line array-callback-return
 						Object.keys(metaData).some(m => {
 							type = metaData[m].Attributes.find(
 								ma => ma.LogicalName === entityFrom.Content[originalName],
