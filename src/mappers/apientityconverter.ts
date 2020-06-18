@@ -25,7 +25,8 @@ export class ApiEntityConverter<
 						apiEntity[attrDetail.LogicalName] = entity[a];
 						break;
 					case MapType.DateTime: // check date!!!
-						apiEntity[a] = entity[a] ? new Date(entity[a]).toISOString() : null;
+						apiEntity[a] = entity[a];
+						// apiEntity[a] = entity[a] ? new Date(entity[a]).toISOString() : null;
 						break;
 					case MapType.Money:
 					case MapType.Decimal:

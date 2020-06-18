@@ -75,12 +75,8 @@ export class MetaDataService {
 	) {
 		if (link.LinkToEntityName) {
 			let entityAlias: string = link.EntityAlias;
-			if (!entityAlias) {
-				const entlength = entities.filter(e => e === link.LinkToEntityName)
-					.length;
-				entityAlias = link.LinkToEntityName + (entlength + 1);
-				entities.push(link.LinkToEntityName);
-			}
+			if (!entityAlias) entityAlias = link.LinkToEntityName + entities.length;
+			entities.push(link.LinkToEntityName + entities.length);
 			if (link.ColumnSet.AllColumns) {
 				metaDataObservables.push(
 					this.getAttributeMetaData(link.LinkToEntityName, entityAlias),
