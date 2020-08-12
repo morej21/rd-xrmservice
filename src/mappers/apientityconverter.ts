@@ -82,12 +82,10 @@ export class ApiEntityConverter<
 						else apiEntity[a] = null;
 						break;
 					default:
-						// console.log("not mapped: " + type["@odata.type"] + " " + mf;
 						break;
 				}
 			}
 		});
-		// console.log(apiEntity);
 		destination.Content = apiEntity;
 		return destination;
 	}

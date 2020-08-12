@@ -1,5 +1,5 @@
 /* eslint-disable import/prefer-default-export */
-import { Observable } from 'rxjs';
+import { Observable, of, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { XrmQuery, XrmLinkEntity } from 'rd-xrmquery/lib/';
 
@@ -9,27 +9,81 @@ import { Entity } from '../models';
 export class MetaDataService {
 	constructor(private crmService: CrmWebapiService) {}
 
-	public getMetaDataByQuery(query: XrmQuery): Observable<any>[] {
-		const observables: Observable<any>[] = [];
-		this.retrieveAttributeMetaDataByQuery(query).forEach(o =>
-			observables.push(o),
-		); // metadata
-		return observables;
+	private entityCache: any = {};
+
+	public initEntityMetaDataCache(...entities: string[]) {
+		return this.crmService.retrieveFullEntityMetaData(...entities).pipe(
+			map(r => {
+				const arr = <any[]>r;
+				arr.forEach(e => {
+					if (!this.entityCache[e.LogicalName]) {
+						this.entityCache[e.LogicalName] = e;
+					}
+				});
+			}),
+		);
 	}
 
 	public retrieveAttributeMetaData(
 		logicalName: string,
 		attributes?: string[],
 	): Observable<any> {
+		if (this.entityCache[logicalName]) {
+			const clone = { ...this.entityCache[logicalName] };
+			return of(clone);
+		}
 		return this.crmService.retrieveMetaData(logicalName, attributes);
 	}
 
 	public retrieveEntityMetaData(...entities: string[]): Observable<any> {
-		return this.crmService.retrieveEntityMetaData(entities);
+		const observableArray: Observable<any>[] = [];
+		const unCachedEntities: string[] = [];
+
+		entities.forEach(e => {
+			if (this.entityCache[e]) {
+				const clone = { ...this.entityCache[e] };
+				observableArray.push(of(clone));
+			} else {
+				unCachedEntities.push(e);
+			}
+		});
+		if (unCachedEntities.length > 0)
+			observableArray.push(
+				this.crmService.retrieveEntityMetaData(...unCachedEntities),
+			);
+		return forkJoin(observableArray);
+	}
+
+	private getAttributeMetaData(
+		entityName: string,
+		entityAlias?: string,
+		attributes?: string[],
+	): Observable<any> {
+		if (this.entityCache[entityName]) {
+			const clone = { ...this.entityCache[entityName] };
+			if (entityAlias) clone.LogicalName = entityAlias;
+			return of(clone);
+		}
+		// attributes
+		return this.crmService.retrieveMetaData(entityName, attributes).pipe(
+			map(m => {
+				const returnMetaData = m;
+				if (entityAlias) returnMetaData.LogicalName = entityAlias;
+				return returnMetaData;
+			}),
+		);
 	}
 
 	public retrieveLookUpMetaData(logicalName: string): Observable<any> {
 		return this.crmService.retrieveLookupMetaData(logicalName);
+	}
+
+	public getMetaDataByQuery(query: XrmQuery): Observable<any>[] {
+		const observables: Observable<any>[] = [];
+		this.retrieveAttributeMetaDataByQuery(query).forEach(o =>
+			observables.push(o),
+		); // metadata
+		return observables;
 	}
 
 	public retrieveAttributeMetaDataByQuery(query: XrmQuery): Observable<any>[] {
@@ -52,20 +106,6 @@ export class MetaDataService {
 			this.getRelatedMetadata(l, metaDataObservables, entities);
 		});
 		return metaDataObservables;
-	}
-
-	private getAttributeMetaData(
-		entityName: string,
-		entityAlias?: string,
-		attributes?: string[],
-	): Observable<any> {
-		// attributes
-		return this.crmService.retrieveMetaData(entityName, attributes).pipe(
-			map(m => {
-				if (entityAlias) m.LogicalName = entityAlias;
-				return m;
-			}),
-		);
 	}
 
 	private getRelatedMetadata(

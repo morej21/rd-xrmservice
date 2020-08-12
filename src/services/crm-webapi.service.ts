@@ -34,6 +34,7 @@ export class CrmWebapiService {
 		entitySetName: string,
 		imageAttribute: string,
 		entityId: string,
+		thumbNail: boolean | false,
 	): Observable<XrmImage> {
 		const headers = this.GetAuthorizedHeader({
 			Accept: 'application/octet-stream',
@@ -41,13 +42,17 @@ export class CrmWebapiService {
 		});
 
 		return ajax({
-			url: `${this.getWebAPIPath()}${entitySetName}(${entityId})/${imageAttribute}/$value?size=full`,
+			// eslint-disable-next-line prettier/prettier
+			url: `${this.getWebAPIPath()}${entitySetName}(${entityId})/${imageAttribute}/$value${
+				!thumbNail ? '?size=full' : ''
+			}`,
 			headers,
 			responseType: 'arraybuffer',
 		}).pipe(
 			map(ar => {
 				const image = new XrmImage();
-				image.fileName = ar.xhr.getResponseHeader('x-ms-file-name');
+				if (!thumbNail)
+					image.fileName = ar.xhr.getResponseHeader('x-ms-file-name');
 				image.imageArrayBuffer = ar.response;
 				return image;
 			}),
@@ -101,6 +106,7 @@ export class CrmWebapiService {
 						return entityId;
 					}
 				}
+				return null;
 			}),
 		);
 	}
@@ -129,12 +135,12 @@ export class CrmWebapiService {
 				map(response => {
 					return response;
 				}),
-				catchError(error =>
-					Observable.throw({
+				catchError(error => {
+					return Observable.throw({
 						source: 'Crm Service updateRecord',
 						message: error.error ? error.error.error.message : error.message,
-					}),
-				),
+					});
+				}),
 			);
 	}
 
@@ -184,6 +190,7 @@ export class CrmWebapiService {
 			'?$select=LogicalName,PrimaryNameAttribute,PrimaryIdAttribute,CollectionSchemaName,LogicalCollectionName,EntitySetName';
 		let expand = '';
 		if (attributes && attributes.length > 0)
+			// eslint-disable-next-line prettier/prettier
 			expand = `&$expand=Attributes($select=LogicalName,SchemaName,IsCustomAttribute${
 				attributes
 					? `;$filter=Microsoft.Dynamics.CRM.In(PropertyName='LogicalName',PropertyValues=[${attributes
@@ -198,11 +205,23 @@ export class CrmWebapiService {
 		return this.retrieve(queryString);
 	}
 
-	public retrieveEntityMetaData(logicalNames?: string[]) {
+	public retrieveEntityMetaData(...logicalNames: string[]) {
 		let queryString = 'EntityDefinitions';
 		queryString +=
 			'?$select=LogicalName,PrimaryNameAttribute,PrimaryIdAttribute,CollectionSchemaName,LogicalCollectionName,EntitySetName';
-		if (logicalNames)
+		if (logicalNames && logicalNames.length > 0)
+			queryString += `&$filter=Microsoft.Dynamics.CRM.In(PropertyName='LogicalName',PropertyValues=[${logicalNames
+				.map(l => `'${l}'`)
+				.join(',')}])`;
+
+		return this.retrieve(queryString).pipe(map(b => b.value));
+	}
+
+	public retrieveFullEntityMetaData(...logicalNames: string[]) {
+		let queryString = 'EntityDefinitions';
+		queryString +=
+			'?$select=LogicalName,PrimaryNameAttribute,PrimaryIdAttribute,CollectionSchemaName,LogicalCollectionName,EntitySetName&$expand=Attributes($select=LogicalName,SchemaName,IsCustomAttribute)';
+		if (logicalNames && logicalNames.length > 0)
 			queryString += `&$filter=Microsoft.Dynamics.CRM.In(PropertyName='LogicalName',PropertyValues=[${logicalNames
 				.map(l => `'${l}'`)
 				.join(',')}])`;

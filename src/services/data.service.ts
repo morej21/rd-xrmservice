@@ -19,7 +19,7 @@ import { CrmEntity } from '../mappers';
 export class DataService {
 	public apiService: CrmWebapiService;
 
-	private metaDataService: MetaDataService;
+	public metaDataService: MetaDataService;
 
 	private entityMapperService: EntityMapperService;
 
@@ -37,18 +37,20 @@ export class DataService {
 		entityName: string,
 		imageAttribute: string,
 		entityId: string,
+		thumbNail: boolean | false,
 	): Observable<XrmImage> {
 		return this.metaDataService.retrieveEntityMetaData(entityName).pipe(
 			mergeMap(em =>
 				this.apiService
-					.getImage(em[0].EntitySetName, imageAttribute, entityId)
+					.getImage(em[0].EntitySetName, imageAttribute, entityId, thumbNail)
 					.pipe(
 						map(i => {
-							i.image = Base64.arrayBufferToBase64(
+							const returnImage = i;
+							returnImage.image = Base64.arrayBufferToBase64(
 								i.imageArrayBuffer,
 								i.fileName,
 							);
-							return i;
+							return returnImage;
 						}),
 					),
 			),

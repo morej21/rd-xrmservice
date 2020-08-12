@@ -76,18 +76,14 @@ export class CrmEntityConverter<
 					}
 				}
 			}
-			// image Id  attribute
-			// console.log(type)
 			if (type) {
 				switch (type['@odata.type']) {
 					case MapType.String:
 					case MapType.Memo:
 						value = entityFrom.Content[mf];
-						//  console.log("string found "+mf)
 						break;
 					case MapType.DateTime:
 						value = entityFrom.Content[mf];
-						// console.log("date found "+mf)
 						break;
 					case MapType.BigInt:
 					case MapType.Decimal:
@@ -95,10 +91,8 @@ export class CrmEntityConverter<
 					case MapType.Money:
 					case MapType.Integer:
 						value = +entityFrom.Content[mf];
-						// console.log("number found "+mf);
 						break;
 					case MapType.Lookup:
-						// console.log(`_${ mf }_value@Microsoft.Dynamics.CRM.lookuplogicalname`);
 						if (linkedEntity || originalName) {
 							value = new EntityReference(
 								entityFrom.Content[
@@ -130,11 +124,8 @@ export class CrmEntityConverter<
 								`${mf}@OData.Community.Display.V1.FormattedValue`
 							],
 						);
-						// console.log("picklist found " + mf);
 						break;
 					case MapType.TwoOptionSet:
-						// console.log("boolean found "+ mf)
-						// console.log(originalvalue);
 						if (
 							originalvalue === null ||
 							+originalvalue === 0 ||
@@ -155,9 +146,7 @@ export class CrmEntityConverter<
 							);
 						break;
 					default:
-						// ImageAttribute??
 						value = entityFrom.Content[mf];
-						// console.log("not mapped: " + type["@odata.type"] + " " + mf;
 						break;
 				}
 				if (linkedEntity)
