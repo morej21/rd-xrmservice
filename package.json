@@ -1,6 +1,6 @@
 {
   "name": "rd-xrmservice",
-  "version": "1.0.68",
+  "version": "1.0.73",
   "description": "TypeScript implementation of CrmServiceClient",
   "author": {
     "name": "David Laeremans(morej21@hotmail.com)",

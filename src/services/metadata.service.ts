@@ -42,7 +42,7 @@ export class MetaDataService {
 		entities.forEach(e => {
 			if (this.entityCache[e]) {
 				const clone = { ...this.entityCache[e] };
-				observableArray.push(of(clone));
+				observableArray.push(of([clone]));
 			} else {
 				unCachedEntities.push(e);
 			}
@@ -51,7 +51,15 @@ export class MetaDataService {
 			observableArray.push(
 				this.crmService.retrieveEntityMetaData(...unCachedEntities),
 			);
-		return forkJoin(observableArray);
+		return forkJoin(observableArray).pipe(
+			map(result => {
+				const returnArray = [];
+				result.forEach(r => {
+					(<[]>r).forEach(re => returnArray.push(re));
+				});
+				return returnArray;
+			}),
+		);
 	}
 
 	private getAttributeMetaData(
